@@ -8,8 +8,10 @@
 
 她拥有一个迷人的Web界面，可以在上面实时显示她的状态、虚拟形象以及电影般的对话字幕，让你能“看”到她的喜怒哀乐。
 
-![项目Web界面截图](https://user-images.githubusercontent.com/your-username/your-repo/assets/screenshot.png)
-*(请将你的项目Web界面截图，并替换上面的图片链接)*
+![image](https://github.com/user-attachments/assets/41b4193e-8fcb-46b7-a019-c6545b669615)
+![image](https://github.com/user-attachments/assets/622c29ba-f48c-44bb-ac49-5723626a589d)
+![image](https://github.com/user-attachments/assets/e4d7846f-1419-45f8-8a1d-299f710cfa3a)
+
 
 ---
 
