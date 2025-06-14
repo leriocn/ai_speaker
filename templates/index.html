@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI 助手</title>
+    <style>
+        :root {
+            --text-color: #ffffff;
+            --user-color: #81C784;
+            --ai-color: #FFCC80;
+            --shadow-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 确保没有滚动条 */
+            font-family: 'Heiti SC', 'Microsoft YaHei', sans-serif;
+        }
+
+
+        /* --- 核心修改1：背景层 --- */
+        #background {
+            position: fixed; /* 固定定位，脱离文档流，铺满全屏 */
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('/static/images/background.png');
+            background-size: cover;
+            background-position: center;
+            z-index: -1; /* 把它放在最底层 */
+        }
+
+        /* --- 核心修改2：角色层 --- */
+        #avatar-container {
+            position: absolute;
+            /* 定位基准点在屏幕下半部分 */
+            bottom: 6vh; /* 图片底部距离屏幕底部的距离, 稍微调整一下 */
+            left: 50%;
+            transform: translateX(-50%); /* 水平居中 */
+            
+            /* 尺寸约束 */
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            width: 90vw; /* 容器宽度 */
+            /* border: 1px solid red; /* 调试时用 */
+        }
+        
+        #avatar-img {
+            /* 关键：尺寸约束 */
+            max-width: 100%;
+            max-height: 70vh; /* 稍微减小一点，确保不触顶 */
+            
+            width: auto;
+            height: auto;
+            
+            transition: all 0.4s ease-in-out;
+        }
+        
+        #avatar-container.listening #avatar-img {
+            animation: breathe 2s infinite ease-in-out;
+        }
+
+        /* --- 核心修改3：字幕层 --- */
+        #subtitle-container {
+            position: absolute;
+            bottom: 5vh;
+            left: 5%; 
+            right: 5%;
+            width: 90%;
+            max-width: 900px;
+            margin: 0 auto;
+            
+            padding: 20px 30px;
+            background-color: rgba(0, 0, 0, 0.65);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px var(--shadow-color);
+            color: var(--text-color);
+            
+            max-height: 35vh;
+            overflow-y: auto;
+            
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.8em;
+        }
+
+        .subtitle-line {
+            display: none; width: 100%; line-height: 1.4; word-break: break-word;
+        }
+        .subtitle-line.active { display: block; }
+        
+        #user-subtitle { color: var(--user-color); }
+        #ai-subtitle { color: var(--ai-color); }
+        
+        @media (max-width: 768px) {
+            #subtitle-container { font-size: 1.2em; max-height: 40vh; padding: 15px 20px; bottom: 8vh;}
+            #avatar-container { bottom: 10vh; }
+            #avatar-img { max-height: 55vh; }
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 全新的、清晰的HTML层级结构 -->
+    <div id="background"></div>
+    
+    <div id="avatar-container">
+        <img id="avatar-img" src="/static/images/girl_idle.png" alt="AI助手">
+    </div>
+
+    <div id="subtitle-container">
+        <div id="status-text" class="subtitle-line active">正在连接...</div>
+        <div id="user-subtitle" class="subtitle-line"></div>
+        <div id="ai-subtitle" class="subtitle-line"></div>
+    </div>
+    <!-- JavaScript部分完全不变 -->
+    <script>
+        // ... (JS代码无需任何修改) ...
+        const avatarContainer = document.getElementById('avatar-container');
+        const avatarImg = document.getElementById('avatar-img');
+        const statusText = document.getElementById('status-text');
+        const userSubtitle = document.getElementById('user-subtitle');
+        const aiSubtitle = document.getElementById('ai-subtitle');
+
+        const AVATAR_IMAGES = {
+            idle: '/static/images/girl_idle.png',
+            listening: '/static/images/girl_listening.png',
+            speaking: '/static/images/girl_speaking.png',
+            processing: '/static/images/girl_speaking.png'
+        };
+
+        let currentAiMessage = '';
+
+        function updateAvatar(state) {
+            const newSrc = AVATAR_IMAGES[state];
+            if (avatarImg.src !== newSrc) {
+                avatarImg.style.opacity = 0;
+                setTimeout(() => { avatarImg.src = newSrc; avatarImg.style.opacity = 1; }, 400);
+            }
+            avatarContainer.classList.toggle('listening', state === 'listening');
+        }
+        
+        function showSubtitle(type, text) {
+            statusText.classList.remove('active');
+            userSubtitle.classList.remove('active');
+            aiSubtitle.classList.remove('active');
+            
+            if (type === 'status') {
+                statusText.textContent = text;
+                statusText.classList.add('active');
+            } else if (type === 'user') {
+                userSubtitle.textContent = text;
+                userSubtitle.classList.add('active');
+            } else if (type === 'ai') {
+                aiSubtitle.textContent = text;
+                aiSubtitle.classList.add('active');
+            }
+        }
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            const socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => showSubtitle('status', '等待唤醒...');
+
+            socket.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                switch(msg.type) {
+                    case 'status_update':
+                        updateAvatar(msg.state);
+                        if (!userSubtitle.classList.contains('active') && !aiSubtitle.classList.contains('active')) {
+                           showSubtitle('status', msg.message);
+                        }
+                        break;
+                    case 'user_speech':
+                        currentAiMessage = '';
+                        showSubtitle('user', msg.text);
+                        break;
+                    case 'ai_speech_chunk':
+                        if (!aiSubtitle.classList.contains('active')) {
+                            currentAiMessage = '';
+                            showSubtitle('ai', '');
+                        }
+                        currentAiMessage += msg.chunk;
+                        aiSubtitle.textContent = currentAiMessage;
+                        break;
+                    case 'new_session':
+                         showSubtitle('status', '等待唤醒...');
+                        break;
+                }
+            };
+
+            socket.onclose = () => {
+                showSubtitle('status', '连接已断开，3秒后重连...');
+                setTimeout(connectWebSocket, 3000);
+            };
+            socket.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                socket.close();
+            };
+        }
+        document.addEventListener('DOMContentLoaded', connectWebSocket);
+    </script>
+</body>
+</html>
